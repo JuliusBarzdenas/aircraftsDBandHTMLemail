@@ -1,0 +1,288 @@
+#Working with FLTechnics task
+
+
+import sqlite3
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+
+#generating database and connecting to it
+conn = sqlite3.connect("air_database.db")
+c = conn.cursor()
+
+
+#starting to upload data from files to newly created database. Main steps one by one"
+#1. Quick view how data structure looks like
+#2. Creating a table in database based on structure detected above
+#3. Inserting data from files to database with validation step
+#4. Quick SQL queries to check if upload succesful.
+#note: 2 and 3 from above should be disallowed(commented) after one time use, their just a tool for ongoing steps
+
+
+
+#Moving forward with steps outlined above with all four files given:
+
+################################WORKING WITH COMPANIES#####################
+
+#1.one time look what's inside the 'companies' file
+f = open("companies.sql", "r")
+print(f.read())
+
+#2.creating table companies
+# c.execute("""CREATE TABLE companies (
+# CMP_AUTO_KEY integer,
+# COMPANY_NAME text,
+# COC_AUTO_KEY integer
+# )""")
+# conn.close()
+
+
+#3.uploading companies data to database
+# with open("companies.sql") as comp_file:
+#     for line in comp_file:
+#         validation = str(line[:4])
+#         if validation in ("Inse"):
+#             c.execute(f"""{line}""")
+
+
+#4.look if upload to companies succesful:
+def just_a_look_to_companies():
+    c.execute(f"SELECT * FROM companies")
+    print(c.fetchall())
+
+
+just_a_look_to_companies()
+
+
+
+################################WORKING WITH aircraft#####################
+
+
+#1.one time look what's inside the 'aircraft' file
+# f = open("aircraft.sql", "r")
+# print(f.read())
+
+#2.Creating table for aircrafts in database
+# c.execute("""CREATE TABLE aircraft (
+# ACT_AUTO_KEY integer,
+# MDL_AUTO_KEY integer,
+# CMP_OWNER integer,
+# TAIL_NUMBER text
+# )""")
+# conn.close()
+
+
+#3.uploading aircraft data to database
+# with open("aircraft.sql") as air_file:
+#     for line in air_file:
+#         validation = str(line[:4])
+#         if validation in ("Inse"):
+#             c.execute(f"""{line}""")
+
+#4.look if upload to aircraft succesful:
+def just_a_look_to_aircraft():
+    c.execute(f"SELECT * FROM aircraft")
+    print(c.fetchall())
+
+
+
+###############################WORKING WITH COUNTRY_CODES#####################
+
+#1.one time look what's inside the 'country_codes' file
+# f = open("country_codes.sql", "r")
+# print(f.read())
+
+#2.Creating table for country_codes in database
+# c.execute("""CREATE TABLE country_codes (
+# COC_AUTO_KEY integer,
+# CODE text,
+# COUNTRY_NAME text,
+# SDF_COC_002 text,
+# SDF_COC_003 text
+# )""")
+
+#3.uploading COUNTRY_CODES data to database
+# with open("country_codes.sql") as co_file:
+#     for line in co_file:
+#         validation = str(line[:4])
+#         if validation in ("Inse"):
+#             c.execute(f"""{line}""")
+
+
+#4.look if upload to COUNTRY_CODES succesful:
+def just_a_look_to_country_codes():
+    c.execute(f"SELECT * FROM country_codes")
+    print(c.fetchall())
+
+
+
+###############################WORKING WITH MODEL#####################
+
+
+#1.one time look what's inside the 'model' file
+# f = open("model.sql", "r")
+# print(f.read())
+
+
+#2.Creating table for model in database
+# c.execute("""CREATE TABLE model (
+# MDL_AUTO_KEY integer,
+# MODEL_NUMBER text,
+# DESCRIPTION text
+# )""")
+
+
+#3.uploading MODEL data to database
+# with open("model.sql") as mod_file:
+#     for line in mod_file:
+#         validation = str(line[:4])
+#         if validation in ("Inse"):
+#             c.execute(f"""{line}""")
+
+#4.look if upload to COUNTRY_CODES succesful:
+def just_a_look_to_model():
+    c.execute(f"SELECT * FROM model")
+    print(c.fetchall())
+
+
+
+
+#####Creation of database and data upload finished.Moving forward with requested SQL queries and their results incorporation in HTML code
+
+#Europe and EU companies
+def sort1(): #first of all - getting data from database
+    c.execute(f"""SELECT aircraft.TAIL_NUMBER,  
+              model.MODEL_NUMBER,
+              model.DESCRIPTION,
+              companies.COMPANY_NAME, 
+              country_codes.CODE,
+              country_codes.COUNTRY_NAME 
+              FROM model inner join aircraft on model.MDL_AUTO_KEY = aircraft.MDL_AUTO_KEY
+              inner join companies ON companies.CMP_AUTO_KEY = aircraft.CMP_OWNER
+              inner join  country_codes ON country_codes.COC_AUTO_KEY = companies.COC_AUTO_KEY   
+              WHERE country_codes.SDF_COC_003 IN ('T') AND country_codes.SDF_COC_002 = 'Europe'""")
+    list1sort1 = c.fetchall()
+    list1sort2 = [] #this and below lists created for data manipulation (eg. moving result set from str to list) and html integration
+    list1sort3 = []
+    i = 0
+    while i < len(list1sort1): #result set moved to new list
+        list1sort2.append(str(list1sort1[i]))
+        i += 1
+    j = 0
+    while j < len(list1sort2): #list parsed to html table components (<TD>) to create structure
+        list1sort3.append(str("<tr bgcolor=D6EAF8><td>" + list1sort2[j].replace("', '", "</td><td>").replace("(", "").replace(")", "").replace("'", "") + "</td></tr>"))
+        j += 1
+    k = 0
+    # getting whole html view for email within data extracted
+    return str("<table border = '1'><tr><td colspan='6'>Europe EU Companies (light blue - within EU, light red - non EU)</td></tr><tr><td>Tail Number</td><td>Model number</td><td>Model description</td><td>Company name</td><td>Country code</td><td>Country name</td></tr>"  + str(list1sort3)).replace("',", "").replace("'", "").replace("[", "").replace("]", "")
+
+
+
+#Europe non EU companies
+def sort2(): #first of all - getting data from database
+    c.execute(f"""SELECT aircraft.TAIL_NUMBER,  
+              model.MODEL_NUMBER,
+              model.DESCRIPTION,
+              companies.COMPANY_NAME, 
+              country_codes.CODE,
+              country_codes.COUNTRY_NAME 
+              FROM model inner join aircraft on model.MDL_AUTO_KEY = aircraft.MDL_AUTO_KEY
+              inner join companies ON companies.CMP_AUTO_KEY = aircraft.CMP_OWNER
+              inner join  country_codes ON country_codes.COC_AUTO_KEY = companies.COC_AUTO_KEY   
+              WHERE country_codes.SDF_COC_003 IN ('F') AND country_codes.SDF_COC_002 = 'Europe'""")
+    list2sort1 = c.fetchall()
+    list2sort2 = [] #this and below lists created for data manipulation (eg. moving result set from str to list) and html integration
+    list2sort3 = []
+    i = 0
+    while i < len(list2sort1): #result set moved to new list
+        list2sort2.append(str(list2sort1[i]))
+        i += 1
+    j = 0
+    while j < len(list2sort2): #list parsed to html table components (<TD>) to create structure
+        list2sort3.append(str("<tr bgcolor=F5B7B1><td>" + list2sort2[j].replace("', '", "</td><td>").replace("(", "").replace(")", "").replace("'", "") + "</td></tr>"))
+        j += 1
+    k = 0
+    # getting whole html view for email within data extracted
+    return str(str(list2sort3) + "</table>").replace("',", "").replace("'", "").replace("[", "").replace("]", "") + "<br>"
+
+
+
+#Outside Europe companies
+def sort3():  #first of all - getting data from database
+    c.execute(f"""SELECT aircraft.TAIL_NUMBER,  
+                  model.MODEL_NUMBER,
+                  model.DESCRIPTION,
+                  companies.COMPANY_NAME, 
+                  country_codes.CODE,
+                  country_codes.COUNTRY_NAME 
+                  FROM model inner join aircraft on model.MDL_AUTO_KEY = aircraft.MDL_AUTO_KEY
+                  inner join companies ON companies.CMP_AUTO_KEY = aircraft.CMP_OWNER
+                  inner join  country_codes ON country_codes.COC_AUTO_KEY = companies.COC_AUTO_KEY   
+                  WHERE country_codes.SDF_COC_002 not in ('Europe')""")
+    listsort1 = c.fetchall()
+    listsort2 = []  #this and below lists created for data manipulation (eg. moving result set from str to list) and html integration
+    listsort3 = []
+    i = 0
+    while i < len(listsort1): #result set moved to new list
+        listsort2.append(str(listsort1[i]))
+        i += 1
+    j = 0
+    while j < len(listsort2): #list parsed to html table components (<TD>) to create structure
+        listsort3.append(str("<tr><td>" + listsort2[j].replace("', '", "</td><td>").replace("(", "").replace(")", "").replace("'", "") + "</td></tr>"))
+        j += 1
+    k = 0
+    #getting whole html view for email within data extracted
+    return str("<table border = '1'><tr><td colspan='6'>Outside Europe Companies</td></tr><tr><td>Tail Number</td><td>Model number</td><td>Model description</td><td>Company name</td><td>Country code</td><td>Country name</td></tr>"  + str(listsort3) + "</table>").replace("',", "").replace("'", "").replace("[", "").replace("]", "")
+
+
+
+
+#########Working with html email composition with data from previous functions, email sent using mailtrap.io
+
+
+sender = "Private Person <from@smtp.mailtrap.io>"
+receiver = "A Test User <to@smtp.mailtrap.io>"
+
+
+message = MIMEMultipart("alternative")
+message["Subject"] = "Aircraft info reports"
+message["From"] = sender
+message["To"] = receiver
+
+
+#creating all the parts of html email
+
+greetings = "Hi All,<br><br>Please find requested report below. Let me know if anything else is needed.<br><br>"
+table1_html = sort3()
+table2_html = sort1()
+table3_html = sort2()
+regards = "<br>Best Regards,<br>Julius"
+
+#converting strings to html code
+
+part0 = MIMEText(greetings, "html")
+part1 = MIMEText(table2_html, "html")
+part2 = MIMEText(table1_html, "html")
+part3 = MIMEText(table3_html, "html")
+part4 = MIMEText(regards, "html")
+
+#attaching parts of html email
+
+message.attach(part0)
+message.attach(part1)
+message.attach(part3)
+message.attach(part2)
+message.attach(part4)
+
+#sending email using mailtrap account
+
+with smtplib.SMTP("smtp.mailtrap.io", 2525) as server:
+    server.login("92783d2f299703", "d8d19944b0e90a")
+    server.sendmail(sender, receiver, message.as_string())
+
+#closing database connections
+conn.commit()
+conn.close()
+
+
